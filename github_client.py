@@ -22,25 +22,22 @@ class GitHubClient(object):
         Returns the JSON-decoded response content, concatenating consecutive pages.
         """
         # assemble url
-        url = urljoin(self.BASE_URL, endpoint)
+        next_url = urljoin(self.BASE_URL, endpoint)
 
-        # make request
-        response = self._make_request(url, method, **kwargs)
-
-        # extract JSON data
-        data = response.json()
+        # set up storage
+        data = []
         
         # loop over all available next urls
-        while self._has_next_url(response):
-            # extract next url
-            next_url = self._next_url(response)
-            
+        while next_url:            
             # make next request
             response = self._make_request(next_url, method, **kwargs)
             
             # concatenate JSON data
             data += response.json()
             
+            # extract next url
+            next_url = self._next_url(response)
+
         # return
         return data
         
@@ -84,19 +81,14 @@ class GitHubClient(object):
 
         # return response
         return response
-
-    def _has_next_url(self, response):
-        """Returns True if a next url is available, False if not"""
-        if 'link' in response.headers.keys():
-            return True
-        else:
-            return False
         
     def _next_url(self, response):
         """Returns the next url"""
         # split link header into next and last rels
-        links = response.headers['link'].split(',')
-        print links
+        try:
+            links = response.headers['link'].split(',')
+        except KeyError: # no link header
+            return None
 
         # loop over link,rel pairs
         for linkrel in links:
